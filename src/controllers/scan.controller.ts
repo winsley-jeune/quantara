@@ -1,8 +1,8 @@
 import type { Request, Response } from 'express';
 import { startScan } from '../services/scanRunner';
 import { buildWorkbook } from '../services/excelWriter';
-import { getScan, listScans, getProducts } from '../models/db';
-import { WALMART_FEED_URLS } from '../config/walmart';
+import { getScan, listScans, getProducts, getRunningScan } from '../models/db';
+import { WALMART_FEED_URLS, CATEGORY_FEEDS } from '../config/walmart';
 
 export function createScan(req: Request, res: Response): void {
   const body = (req.body ?? {}) as { feedUrls?: unknown };
@@ -14,6 +14,28 @@ export function createScan(req: Request, res: Response): void {
     }
     feedUrls = body.feedUrls as string[];
   }
+  const running = getRunningScan();
+  if (running) {
+    res.status(409).json({
+      error: 'a scan is already running; wait for it to finish',
+      runningScanId: running.id,
+    });
+    return;
+  }
+  const scan = startScan(feedUrls);
+  res.status(202).json(scan);
+}
+
+export function createFullScan(_req: Request, res: Response): void {
+  const running = getRunningScan();
+  if (running) {
+    res.status(409).json({
+      error: 'a scan is already running; wait for it to finish',
+      runningScanId: running.id,
+    });
+    return;
+  }
+  const feedUrls = Object.values(CATEGORY_FEEDS).flat();
   const scan = startScan(feedUrls);
   res.status(202).json(scan);
 }
