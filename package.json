@@ -1,29 +1,31 @@
 {
   "name": "quantara",
-  "version": "0.1.0",
-  "main": "server.js",
+  "version": "0.2.0",
+  "main": "dist/server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js",
-    "scrape:tiles": "node legacy/scrape-to-excel.js",
-    "scrape:skus": "node legacy/scrape-skus-to-excel.js",
-    "scrape:catalog": "node legacy/scrape-catalog-table.js"
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "URL → product-information extractor powered by the Anthropic API.",
+  "description": "Walmart → Amazon arbitrage scanner. Scrapes Walmart category feeds and produces a sourcing workbook for SellerAmp analysis.",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.40.0",
     "better-sqlite3": "^12.9.0",
     "dotenv": "^16.4.5",
     "exceljs": "^4.4.0",
     "express": "^4.21.2",
-    "multer": "^2.1.1",
-    "pdf-parse": "^2.4.5",
     "puppeteer": "^24.42.0",
     "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "turndown": "^7.2.0"
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.6.2",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
   }
 }
