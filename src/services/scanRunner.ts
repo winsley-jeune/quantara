@@ -103,23 +103,36 @@ export function startScan(feedUrls: string[] = WALMART_FEED_URLS): ScanRecord {
 async function runScan(id: string, feedUrls: string[]): Promise<void> {
   const seen = new Set<string>();
   const products: Product[] = [];
+  const feedErrors: string[] = [];
+
+  // Per-feed try/catch — a single blocked/failed feed should not throw away
+  // the products we already collected from earlier feeds. We persist what we
+  // have at the end and surface the errors in the scan record.
   for (const url of feedUrls) {
-    const feedProducts = await processFeed(url, id);
-    for (const p of feedProducts) {
-      if (seen.has(p.sourceId)) continue;
-      seen.add(p.sourceId);
-      products.push(p);
+    try {
+      const feedProducts = await processFeed(url, id);
+      for (const p of feedProducts) {
+        if (seen.has(p.sourceId)) continue;
+        seen.add(p.sourceId);
+        products.push(p);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[scanRunner] ${id} feed failed (${url}): ${msg}`);
+      feedErrors.push(`${url}: ${msg}`);
     }
   }
+
   if (products.length) insertProducts(id, products);
   const upcCount = products.filter((p) => p.upc).length;
   updateScan(id, {
     status: 'completed',
     finishedAt: new Date().toISOString(),
     productCount: products.length,
+    errorMessage: feedErrors.length ? feedErrors.join(' | ') : null,
   });
   console.log(
-    `[scanRunner] ${id} completed: ${products.length} products, ${upcCount} with UPC`,
+    `[scanRunner] ${id} completed: ${products.length} products, ${upcCount} with UPC, ${feedErrors.length} feed errors`,
   );
   // Suppress unused-config warning — pdpConcurrency stays in config.ts as a
   // hint for when we revisit anti-bot strategy.
