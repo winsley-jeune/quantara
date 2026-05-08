@@ -6,6 +6,7 @@ import {
   WalmartBlockedError,
 } from './walmartScraper';
 import { toProduct } from './productMapper';
+import { isBrandBlocked } from './brandFilter';
 import { insertScan, updateScan, insertProducts } from '../models/db';
 import type { Product, RawWalmartItem } from '../models/product';
 import type { ScanRecord } from '../models/scan';
@@ -63,8 +64,14 @@ async function enrich(
 async function processFeed(url: string, scanId: string): Promise<Product[]> {
   console.log(`[scanRunner] ${scanId} scraping ${url}`);
   const rawItems: RawWalmartItem[] = await scrapeCategory(url);
-  console.log(`[scanRunner] ${scanId} ${url} → ${rawItems.length} items, enriching`);
-  return enrich(rawItems, scanId);
+  // Drop blocked brands before PDP enrichment — no point spending rate-limited
+  // PDP requests on items we'll throw away.
+  const kept = rawItems.filter((item) => !isBrandBlocked(item.brand));
+  const dropped = rawItems.length - kept.length;
+  console.log(
+    `[scanRunner] ${scanId} ${url} → ${rawItems.length} items, ${dropped} brand-blocked, enriching ${kept.length}`,
+  );
+  return enrich(kept, scanId);
 }
 
 export function startScan(feedUrls: string[] = WALMART_FEED_URLS): ScanRecord {
