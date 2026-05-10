@@ -14,6 +14,27 @@ Started 2026-05-10 01:48 UTC. Updated as I see things.
 
 **Restart at 02:45 UTC** — killed scan d59234d5 mid-flight after 7 feeds. Zombie cleanup correctly marked it failed. Re-launched as 04e4609b-3774-4107-9587-85551946e17c with: auto-degrade to category-only, cooldown cap lowered to 5 min, cancel endpoint, drop-priceless filter. Master catalog preserved across restart at 383 products / 86 UPCs.
 
+## Final results (after ~9.5h scan + cancel test)
+
+**Master catalog: 2893 products / 823 with UPC (~28% UPC coverage).**
+
+- Scan 04e4609b ran 54 feeds end-to-end, completed with 2840 / 821. Even at the conservative ~5-min cooldowns, we got better PDP coverage than expected: feed 1 alone yielded 13/53 UPCs, not near the low-yield trigger.
+- Scan d2955ec1 was kicked off with the new code, ran 1 feed (13/53 UPCs again), then cancellation was tested via POST /api/scans/d2955ec1/cancel — worked cleanly, status = `cancelled`, 53 products preserved.
+- All 11 ungated Amazon categories (53 distinct queries) are represented in the catalog.
+
+## Things observed that work well
+- 50%-rate-budget pacing did NOT prevent us from getting UPC; we still got 28% coverage.
+- Per-feed checkpointing meant the orphaned d59234d5 scan still contributed its first 7 feeds to the catalog.
+- Browser fingerprint rotation seemed to keep us alive: blocked PDPs after the first 5–15 per feed, but never blocked at category level.
+- Brand filter dropped exactly 1 brand-blocked item across the entire 54-feed scan (under "baby+bibs+silicone"). Most curated queries already dodge house brands by design.
+- Cancel endpoint took effect at next feed boundary (~2 min after request) — that's the cost of cooperative cancellation, but it preserves partial work cleanly.
+
+## Things still worth considering (not done — left for user)
+- **Periodic re-scan to fill UPCs over time.** A nightly cron on a smaller subset of feeds would top up the catalog without burning the IP. The robustness is in place; just needs a scheduler.
+- **Tracking which feed each product came from.** Right now every product looks the same in the workbook regardless of category. Threading a `category` field through would let the user filter the workbook by Amazon-ungated category. Schema-light: just add a key to the JSON payload.
+- **A sub-$N price filter.** Mentioned but didn't ship — products under $3 are usually not arbitrage candidates and pad the SAS review queue.
+- **Walmart Open API**. Their Affiliate program offers a real product API. If the user gets approved, we can swap the Puppeteer pipeline for clean JSON calls and finally get 100% UPC coverage.
+
 ## Live pattern observed
 **PDP traffic is uniformly blocked while category pages work.** Feeds 1, 2,
 3 all got 50–58 items via category scrape, then hit "Robot or human?"
