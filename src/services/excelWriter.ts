@@ -1,7 +1,16 @@
 import ExcelJS from 'exceljs';
 import type { Product } from '../models/product';
 
+// Filter applied at workbook-time only — raw data stays in DB. Drop products
+// without a usable price; they're useless for arbitrage and dilute the
+// SAS-review queue.
+function isWorkbookEligible(p: Product): boolean {
+  return typeof p.price.amount === 'number' && p.price.amount > 0;
+}
+
 export async function buildWorkbook(products: Product[]): Promise<Buffer> {
+  const eligible = products.filter(isWorkbookEligible);
+
   const wb = new ExcelJS.Workbook();
   wb.creator = 'quantara';
   wb.created = new Date();
@@ -27,7 +36,7 @@ export async function buildWorkbook(products: Product[]): Promise<Buffer> {
   };
   ws.views = [{ state: 'frozen', ySplit: 1 }];
 
-  for (const p of products) {
+  for (const p of eligible) {
     const row = ws.addRow({
       title: p.title,
       brand: p.brand ?? '',

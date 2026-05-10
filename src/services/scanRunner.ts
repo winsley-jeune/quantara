@@ -13,6 +13,7 @@ import {
   updateScan,
   insertProducts,
   upsertMasterProducts,
+  isCancelRequested,
 } from '../models/db';
 import type { Product, RawWalmartItem } from '../models/product';
 import type { ScanRecord } from '../models/scan';
@@ -24,8 +25,10 @@ import type { ScanRecord } from '../models/scan';
 const PDP_DELAY_MS = 3000; // 1 req / 3s; ~50% of the 1.5s pace that worked
 const MAX_CONSECUTIVE_PDP_FAILURES = 4;
 const FEED_BASE_COOLDOWN_MS = 60_000; // sleep this long between feeds
-const FEED_COOLDOWN_MAX_MS = 10 * 60_000; // ceiling on adaptive backoff
+const FEED_COOLDOWN_MAX_MS = 5 * 60_000; // ceiling on adaptive backoff
 const RECYCLE_BROWSER_BETWEEN_FEEDS = true;
+const PDP_BLOCK_THRESHOLD_FOR_DEGRADE = 3; // after N consecutive PDP-blocked feeds, skip PDP for the rest of this scan
+const CATEGORY_ONLY_COOLDOWN_MS = 15_000; // shorter cooldown when no PDP work
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
@@ -76,10 +79,18 @@ async function enrich(
   return { products, blocked: sawBlock };
 }
 
+// Category-only path — used when PDP fetches are uniformly blocked. Skips
+// the slow per-item enrichment and just emits products with category-level
+// data. ~30s per feed instead of ~3min.
+function categoryOnly(rawItems: RawWalmartItem[]): Product[] {
+  return rawItems.map((item) => toProduct(item, { upc: null, gtin: null }));
+}
+
 async function processFeed(
   url: string,
   scanId: string,
-): Promise<{ products: Product[]; blocked: boolean }> {
+  options: { skipPdp: boolean },
+): Promise<{ products: Product[]; blocked: boolean; pdpBlockedAtStep1: boolean }> {
   console.log(`[scanRunner] ${scanId} scraping ${url}`);
   const rawItems: RawWalmartItem[] = await scrapeCategory(url);
   // Drop blocked brands before PDP enrichment — no point spending rate-limited
@@ -87,9 +98,17 @@ async function processFeed(
   const kept = rawItems.filter((item) => !isBrandBlocked(item.brand));
   const dropped = rawItems.length - kept.length;
   console.log(
-    `[scanRunner] ${scanId} ${url} → ${rawItems.length} items, ${dropped} brand-blocked, enriching ${kept.length}`,
+    `[scanRunner] ${scanId} ${url} → ${rawItems.length} items, ${dropped} brand-blocked, ${options.skipPdp ? 'category-only' : `enriching ${kept.length}`}`,
   );
-  return enrich(kept, scanId);
+  if (options.skipPdp) {
+    return { products: categoryOnly(kept), blocked: false, pdpBlockedAtStep1: false };
+  }
+  const { products, blocked } = await enrich(kept, scanId);
+  // "blocked at step 1" = first product has no UPC and we saw a block —
+  // proxy for "every PDP this feed was instantly challenged."
+  const pdpBlockedAtStep1 =
+    blocked && products.length > 0 && products[0]!.upc === null;
+  return { products, blocked, pdpBlockedAtStep1 };
 }
 
 export function startScan(feedUrls: string[] = WALMART_FEED_URLS): ScanRecord {
@@ -126,13 +145,44 @@ async function runScan(id: string, feedUrls: string[]): Promise<void> {
   const products: Product[] = [];
   const feedErrors: string[] = [];
   let cooldown = FEED_BASE_COOLDOWN_MS;
+  let consecutivePdpBlockedFeeds = 0;
+  let categoryOnlyMode = false;
 
   for (let i = 0; i < feedUrls.length; i++) {
+    if (isCancelRequested(id)) {
+      console.warn(`[scanRunner] ${id} cancellation requested — stopping`);
+      const upcCount = products.filter((p) => p.upc).length;
+      updateScan(id, {
+        status: 'cancelled',
+        finishedAt: new Date().toISOString(),
+        productCount: products.length,
+        errorMessage: feedErrors.length ? feedErrors.join(' | ') : null,
+      });
+      console.log(
+        `[scanRunner] ${id} cancelled: ${products.length} products, ${upcCount} with UPC`,
+      );
+      return;
+    }
     const url = feedUrls[i]!;
     let feedBlocked = false;
     try {
-      const { products: feedProducts, blocked } = await processFeed(url, id);
+      const { products: feedProducts, blocked, pdpBlockedAtStep1 } =
+        await processFeed(url, id, { skipPdp: categoryOnlyMode });
       feedBlocked = blocked;
+      if (pdpBlockedAtStep1) {
+        consecutivePdpBlockedFeeds++;
+        if (
+          !categoryOnlyMode &&
+          consecutivePdpBlockedFeeds >= PDP_BLOCK_THRESHOLD_FOR_DEGRADE
+        ) {
+          categoryOnlyMode = true;
+          console.warn(
+            `[scanRunner] ${id} switching to category-only mode after ${consecutivePdpBlockedFeeds} consecutive PDP-blocked feeds`,
+          );
+        }
+      } else {
+        consecutivePdpBlockedFeeds = 0;
+      }
       const fresh: Product[] = [];
       for (const p of feedProducts) {
         if (seen.has(p.sourceId)) continue;
@@ -157,7 +207,11 @@ async function runScan(id: string, feedUrls: string[]): Promise<void> {
 
     // Adaptive backoff. If Walmart blocked us during this feed, double the
     // cooldown (capped). If the feed went clean, halve back toward baseline.
-    if (feedBlocked) {
+    // Category-only mode uses a much shorter cooldown — there's no PDP heat
+    // to recover from.
+    if (categoryOnlyMode) {
+      cooldown = CATEGORY_ONLY_COOLDOWN_MS;
+    } else if (feedBlocked) {
       cooldown = Math.min(cooldown * 2, FEED_COOLDOWN_MAX_MS);
     } else {
       cooldown = Math.max(FEED_BASE_COOLDOWN_MS, cooldown / 2);

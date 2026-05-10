@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   createScan,
   createFullScan,
+  cancelScan,
   getScans,
   getScanById,
   downloadWorkbook,
@@ -11,6 +12,7 @@ const router = Router();
 
 router.post('/scans', createScan);
 router.post('/scans/full', createFullScan);
+router.post('/scans/:id/cancel', cancelScan);
 router.get('/scans', getScans);
 router.get('/scans/:id', getScanById);
 router.get('/scans/:id/workbook', (req, res, next) => {

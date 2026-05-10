@@ -1,4 +1,4 @@
-export type ScanStatus = 'running' | 'completed' | 'failed';
+export type ScanStatus = 'running' | 'completed' | 'failed' | 'cancelled';
 
 export interface ScanRecord {
   id: string;

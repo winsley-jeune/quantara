@@ -1,7 +1,13 @@
 import type { Request, Response } from 'express';
 import { startScan } from '../services/scanRunner';
 import { buildWorkbook } from '../services/excelWriter';
-import { getScan, listScans, getProducts, getRunningScan } from '../models/db';
+import {
+  getScan,
+  listScans,
+  getProducts,
+  getRunningScan,
+  requestCancel,
+} from '../models/db';
 import { WALMART_FEED_URLS, CATEGORY_FEEDS } from '../config/walmart';
 
 export function createScan(req: Request, res: Response): void {
@@ -59,6 +65,20 @@ export function getScanById(req: Request, res: Response): void {
   res.json({ scan, products });
 }
 
+export function cancelScan(req: Request, res: Response): void {
+  const id = typeof req.params.id === 'string' ? req.params.id : '';
+  if (!id) {
+    res.status(400).json({ error: 'id is required' });
+    return;
+  }
+  const ok = requestCancel(id);
+  if (!ok) {
+    res.status(409).json({ error: 'scan is not running (already finished or not found)' });
+    return;
+  }
+  res.json({ id, cancelRequested: true });
+}
+
 export async function downloadWorkbook(req: Request, res: Response): Promise<void> {
   const id = typeof req.params.id === 'string' ? req.params.id : '';
   if (!id) {
@@ -70,8 +90,8 @@ export async function downloadWorkbook(req: Request, res: Response): Promise<voi
     res.status(404).json({ error: 'scan not found' });
     return;
   }
-  if (scan.status !== 'completed') {
-    res.status(409).json({ error: `scan is ${scan.status}, workbook not ready` });
+  if (scan.status === 'running') {
+    res.status(409).json({ error: 'scan is still running' });
     return;
   }
   const products = getProducts(id);

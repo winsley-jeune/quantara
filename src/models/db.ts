@@ -42,6 +42,31 @@ function connect(): Database.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_master_last_seen ON master_products(last_seen_at);
   `);
+
+  // Online schema migration: add cancel_requested if missing. SQLite has no
+  // ADD COLUMN IF NOT EXISTS, so we try + swallow the duplicate error.
+  try {
+    db.exec(
+      `ALTER TABLE scans ADD COLUMN cancel_requested INTEGER NOT NULL DEFAULT 0`,
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!/duplicate column/i.test(msg)) throw err;
+  }
+
+  // Zombie-recovery: any scan still marked 'running' on first connect is
+  // orphaned by a previous crash/restart. Mark it failed so the next
+  // POST /api/scans isn't blocked by a permanent ghost.
+  const zombies = db
+    .prepare("SELECT id FROM scans WHERE status = 'running'")
+    .all() as Array<{ id: string }>;
+  if (zombies.length) {
+    db.prepare(
+      `UPDATE scans SET status='failed', finished_at=?, error_message='orphaned by server restart' WHERE status='running'`,
+    ).run(new Date().toISOString());
+    console.log(`[db] cleared ${zombies.length} zombie running scan(s)`);
+  }
+
   return db;
 }
 
@@ -99,6 +124,20 @@ export function updateScan(
   if (!fields.length) return;
   values.push(id);
   connect().prepare(`UPDATE scans SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+}
+
+export function requestCancel(id: string): boolean {
+  const result = connect()
+    .prepare("UPDATE scans SET cancel_requested = 1 WHERE id = ? AND status = 'running'")
+    .run(id);
+  return result.changes > 0;
+}
+
+export function isCancelRequested(id: string): boolean {
+  const row = connect()
+    .prepare('SELECT cancel_requested FROM scans WHERE id = ?')
+    .get(id) as { cancel_requested: number } | undefined;
+  return Boolean(row && row.cancel_requested);
 }
 
 export function getRunningScan(): ScanRecord | null {
