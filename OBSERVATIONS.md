@@ -7,6 +7,12 @@ Started 2026-05-10 01:48 UTC. Updated as I see things.
 | # | Feed | Items | UPC | Notes |
 |---|---|---|---|---|
 | 1 | dog rope toy | 56 | 0 | First PDP blocked — Walmart still flagging from earlier. All saved category-only. Cooldown bumped to 120s. |
+| 2 | cat scratching post | 58 | some | First PDP blocked but several earlier items got UPC before halt. Cooldown 240s. |
+| 3 | aquarium decor | 51 | some | Same pattern. Cooldown 480s. |
+| 4 | bird cage accessories | 55 | some | Same pattern. Cooldown 600s (capped). |
+| 5–7 | reptile heat lamp / desk organizer / label maker | ~55 each | mixed | All hit 600s cooldown. Master catalog at 327 products / 86 UPCs. |
+
+**Restart at 02:45 UTC** — killed scan d59234d5 mid-flight after 7 feeds. Zombie cleanup correctly marked it failed. Re-launched as 04e4609b-3774-4107-9587-85551946e17c with: auto-degrade to category-only, cooldown cap lowered to 5 min, cancel endpoint, drop-priceless filter. Master catalog preserved across restart at 383 products / 86 UPCs.
 
 ## Live pattern observed
 **PDP traffic is uniformly blocked while category pages work.** Feeds 1, 2,

@@ -27,7 +27,8 @@ const MAX_CONSECUTIVE_PDP_FAILURES = 4;
 const FEED_BASE_COOLDOWN_MS = 60_000; // sleep this long between feeds
 const FEED_COOLDOWN_MAX_MS = 5 * 60_000; // ceiling on adaptive backoff
 const RECYCLE_BROWSER_BETWEEN_FEEDS = true;
-const PDP_BLOCK_THRESHOLD_FOR_DEGRADE = 3; // after N consecutive PDP-blocked feeds, skip PDP for the rest of this scan
+const PDP_BLOCK_THRESHOLD_FOR_DEGRADE = 3; // after N consecutive low-yield PDP feeds, skip PDP for the rest of this scan
+const MIN_PDP_SUCCESS_PER_FEED = 5; // a feed yielding fewer UPC-bearing items than this counts as low-yield
 const CATEGORY_ONLY_COOLDOWN_MS = 15_000; // shorter cooldown when no PDP work
 
 function sleep(ms: number): Promise<void> {
@@ -90,7 +91,7 @@ async function processFeed(
   url: string,
   scanId: string,
   options: { skipPdp: boolean },
-): Promise<{ products: Product[]; blocked: boolean; pdpBlockedAtStep1: boolean }> {
+): Promise<{ products: Product[]; blocked: boolean; pdpLowYield: boolean }> {
   console.log(`[scanRunner] ${scanId} scraping ${url}`);
   const rawItems: RawWalmartItem[] = await scrapeCategory(url);
   // Drop blocked brands before PDP enrichment — no point spending rate-limited
@@ -101,14 +102,20 @@ async function processFeed(
     `[scanRunner] ${scanId} ${url} → ${rawItems.length} items, ${dropped} brand-blocked, ${options.skipPdp ? 'category-only' : `enriching ${kept.length}`}`,
   );
   if (options.skipPdp) {
-    return { products: categoryOnly(kept), blocked: false, pdpBlockedAtStep1: false };
+    return { products: categoryOnly(kept), blocked: false, pdpLowYield: false };
   }
   const { products, blocked } = await enrich(kept, scanId);
-  // "blocked at step 1" = first product has no UPC and we saw a block —
-  // proxy for "every PDP this feed was instantly challenged."
-  const pdpBlockedAtStep1 =
-    blocked && products.length > 0 && products[0]!.upc === null;
-  return { products, blocked, pdpBlockedAtStep1 };
+  // Low yield = PDP enrichment delivered fewer than MIN_PDP_SUCCESS_PER_FEED
+  // UPC-bearing products. Strong signal that PDP traffic is mostly blocked
+  // and continuing to attempt it is wasting cooldown time. (More robust than
+  // "step 1 blocked" — Walmart often lets the very first PDP through before
+  // flagging us, which previously prevented degrade.)
+  const pdpSuccess = products.filter((p) => p.upc).length;
+  const pdpLowYield = blocked && pdpSuccess < MIN_PDP_SUCCESS_PER_FEED;
+  console.log(
+    `[scanRunner] ${scanId} ${url} pdp-success=${pdpSuccess}/${kept.length}${pdpLowYield ? ' (low yield)' : ''}`,
+  );
+  return { products, blocked, pdpLowYield };
 }
 
 export function startScan(feedUrls: string[] = WALMART_FEED_URLS): ScanRecord {
@@ -166,10 +173,10 @@ async function runScan(id: string, feedUrls: string[]): Promise<void> {
     const url = feedUrls[i]!;
     let feedBlocked = false;
     try {
-      const { products: feedProducts, blocked, pdpBlockedAtStep1 } =
+      const { products: feedProducts, blocked, pdpLowYield } =
         await processFeed(url, id, { skipPdp: categoryOnlyMode });
       feedBlocked = blocked;
-      if (pdpBlockedAtStep1) {
+      if (pdpLowYield) {
         consecutivePdpBlockedFeeds++;
         if (
           !categoryOnlyMode &&
