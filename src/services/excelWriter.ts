@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import type { Product } from '../models/product';
+import { sasLookupUrl } from '../utils/selleramp';
 
 // Filter applied at workbook-time only — raw data stays in DB. Drop products
 // without a usable price; they're useless for arbitrage and dilute the
@@ -38,6 +39,7 @@ function scoreProduct(p: Product): number {
 
 const COLUMNS = [
   { header: 'Score', key: 'score', width: 8 },
+  { header: 'SAS', key: 'sas', width: 8 },
   { header: 'Title', key: 'title', width: 50 },
   { header: 'Brand', key: 'brand', width: 20 },
   { header: 'Price', key: 'price', width: 12 },
@@ -60,8 +62,10 @@ function fillSheet(ws: ExcelJS.Worksheet, products: Array<Product & { score: num
   ws.views = [{ state: 'frozen', ySplit: 1 }];
 
   for (const p of products) {
+    const sasUrl = p.upc ? sasLookupUrl(p.upc) : '';
     const row = ws.addRow({
       score: p.score,
+      sas: sasUrl ? 'Check' : '',
       title: p.title,
       brand: p.brand ?? '',
       price: p.price.amount ?? '',
@@ -74,6 +78,10 @@ function fillSheet(ws: ExcelJS.Worksheet, products: Array<Product & { score: num
     });
     row.getCell('url').value = { text: p.url, hyperlink: p.url };
     row.getCell('url').font = { color: { argb: 'FF0563C1' }, underline: true };
+    if (sasUrl) {
+      row.getCell('sas').value = { text: 'Check', hyperlink: sasUrl };
+      row.getCell('sas').font = { color: { argb: 'FF0563C1' }, underline: true, bold: true };
+    }
     if (p.imageUrl) {
       row.getCell('image').value = { text: p.imageUrl, hyperlink: p.imageUrl };
       row.getCell('image').font = { color: { argb: 'FF0563C1' }, underline: true };
