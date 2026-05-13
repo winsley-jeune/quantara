@@ -4,12 +4,14 @@ import { scrapeInlineSales } from '../src/agent/sources/inlinesales';
 import { scrapeBoilerSupplies } from '../src/agent/sources/boilersupplies';
 import { scrapeVulcanSeals } from '../src/agent/sources/vulcanseals';
 import { scrapeJacksonSystems } from '../src/agent/sources/jacksonsystems';
+import { scrapePEXUniverse } from '../src/agent/sources/pexuniverse';
 import {
   ussealToCatalog,
   inlinesalesToCatalog,
   boilersuppliesToCatalog,
   vulcanToCatalog,
   jacksonsystemsToCatalog,
+  pexToCatalog,
   writeCatalogExcel,
   type CatalogRow,
 } from '../src/agent/exports/excelExport';
@@ -56,6 +58,15 @@ async function main(): Promise<void> {
     all.push(...jacksonsystemsToCatalog(jackson));
   } catch (err) {
     console.warn('  jacksonsystems failed:', (err as Error).message);
+  }
+
+  try {
+    console.log('scraping PEXUniverse sitemap (pump + HVAC)...');
+    const pex = await scrapePEXUniverse();
+    console.log(`  → ${pex.length} rows`);
+    all.push(...pexToCatalog(pex));
+  } catch (err) {
+    console.warn('  pexuniverse failed:', (err as Error).message);
   }
 
   console.log(`\ntotal rows: ${all.length}`);
