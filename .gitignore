@@ -38,3 +38,5 @@ data/
 *.db-journal
 *.db-wal
 *.db-shm
+data/source-pdfs/
+data/catalog-*.xlsx
