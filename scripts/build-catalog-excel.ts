@@ -5,6 +5,8 @@ import { scrapeBoilerSupplies } from '../src/agent/sources/boilersupplies';
 import { scrapeVulcanSeals } from '../src/agent/sources/vulcanseals';
 import { scrapeJacksonSystems } from '../src/agent/sources/jacksonsystems';
 import { scrapePEXUniverse } from '../src/agent/sources/pexuniverse';
+import { scrapeSupplyHouse } from '../src/agent/sources/supplyhouse';
+import { closeBrowser } from '../src/utils/puppeteer';
 import {
   ussealToCatalog,
   inlinesalesToCatalog,
@@ -12,6 +14,7 @@ import {
   vulcanToCatalog,
   jacksonsystemsToCatalog,
   pexToCatalog,
+  supplyhouseToCatalog,
   dedupeCatalog,
   writeCatalogExcel,
   type CatalogRow,
@@ -68,6 +71,19 @@ async function main(): Promise<void> {
     all.push(...pexToCatalog(pex));
   } catch (err) {
     console.warn('  pexuniverse failed:', (err as Error).message);
+  }
+
+  try {
+    console.log('scraping SupplyHouse sitemap (stealth Puppeteer, up to 50K URLs)...');
+    const sh = await scrapeSupplyHouse({ maxUrls: 50_000 });
+    console.log(`  → ${sh.length} rows (after slug parse + dedup)`);
+    all.push(...supplyhouseToCatalog(sh));
+  } catch (err) {
+    console.warn('  supplyhouse failed:', (err as Error).message);
+  } finally {
+    await closeBrowser().catch(() => {
+      /* ignore */
+    });
   }
 
   console.log(`\nraw rows: ${all.length}`);

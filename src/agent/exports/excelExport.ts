@@ -7,6 +7,7 @@ import type { BoilerSuppliesEntry } from '../sources/boilersupplies';
 import type { VulcanEntry } from '../sources/vulcanseals';
 import type { JacksonSystemsEntry } from '../sources/jacksonsystems';
 import type { PexEntry } from '../sources/pexuniverse';
+import type { SupplyHouseEntry } from '../sources/supplyhouse';
 
 export interface CatalogRow {
   source: string;
@@ -58,6 +59,22 @@ export function boilersuppliesToCatalog(rows: BoilerSuppliesEntry[]): CatalogRow
   return rows.map((r) => ({
     source: r.source,
     category: 'pump-part',
+    oem_brand: r.brand,
+    oem_part_number: r.part_number,
+    aftermarket_brand: '',
+    aftermarket_part_number: '',
+    pump_nameplate_data: r.slug_remainder,
+    search_query: `${r.brand} ${r.part_number}`,
+    monthly_search_volume: '',
+    list_price_estimate: '',
+    status: 'sourced',
+  }));
+}
+
+export function supplyhouseToCatalog(rows: SupplyHouseEntry[]): CatalogRow[] {
+  return rows.map((r) => ({
+    source: r.source,
+    category: 'mixed',
     oem_brand: r.brand,
     oem_part_number: r.part_number,
     aftermarket_brand: '',
