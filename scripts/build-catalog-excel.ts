@@ -74,10 +74,10 @@ async function main(): Promise<void> {
   }
 
   try {
-    console.log('scraping SupplyHouse sitemap (stealth Puppeteer, up to 50K URLs)...');
-    const sh = await scrapeSupplyHouse({ maxUrls: 50_000 });
+    console.log('scraping SupplyHouse sitemap (stealth Puppeteer, all 9 sitemaps ~450K URLs)...');
+    const sh = await scrapeSupplyHouse({ maxUrls: 500_000 });
     console.log(`  → ${sh.length} rows (after slug parse + dedup)`);
-    all.push(...supplyhouseToCatalog(sh));
+    for (const r of supplyhouseToCatalog(sh)) all.push(r);
   } catch (err) {
     console.warn('  supplyhouse failed:', (err as Error).message);
   } finally {

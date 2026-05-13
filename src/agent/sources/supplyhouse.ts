@@ -26,7 +26,8 @@ async function fetchSitemapViaPuppeteer(url: string): Promise<string[]> {
     await page.setUserAgent(
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
     );
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
+    // Sitemaps can be ~10MB each; give the page enough time to parse XML.
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90_000 });
     const text = await page.evaluate(() => document.body.innerText);
     const urls = [...text.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]!);
     return urls;
