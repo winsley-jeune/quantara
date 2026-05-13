@@ -29,15 +29,19 @@ The detailed reference docs (`BACKEND_PLAN.md`, `INFRA_AND_MIGRATIONS.md`, `CONT
 
 ## 1. Executive summary
 
-**What we're building:** Nurtique, an SEO-driven e-commerce site selling industrial pump seals and HVAC controls (~50,000 curated SKUs at launch, scaling). 100% dropshipping from authorized distributors. No inventory.
+**What we're building:** Nurtique, a search-first reference + e-commerce site for industrial pump seals and HVAC controls. Two layers stacked: ~50,000 factually-accurate reference pages (every cross-reference, dimension, spec) + 500-2,000 genuinely deep authoritative articles. 100% dropshipping from authorized distributors. No inventory.
 
-**How we win:** Long-tail SEO on `[brand] [part-number]` exact queries. Competitors have ad budget; we have technology + technical SEO. They chase head terms; we own 50,000 part-number landing pages.
+**How we win:** Two compounding moats —
+1. **Long-tail SEO** on `[brand] [part-number]` exact queries (50K stub pages with citation-grade factual minimums).
+2. **AI-citation authority** — become the source that ChatGPT / Perplexity / Gemini cite when a technician or homeowner asks "what seal fits my B&G Series 80?" This is the durable moat: it survives Google algorithm changes.
 
-**Year-1 target:** 10,000 SKUs ranked top-3 on Google → ~$30K-$80K MRR by month 12.
+Competitors have ad budget. We have technical SEO + structured data + original cross-reference data + multi-audience content depth (technicians, homeowners, students).
 
-**Capital:** $1K starting; reinvest revenue into Postgres host, S3, distributor inventory deposits.
+**Year-1 target:** 5,000-10,000 SKUs ranked top-3 on Google + 200-500 deep articles indexed and cited by at least one AI assistant. → ~$15K-$40K MRR by month 12.
 
-**Team:** Solo (you) + AI agent (me) for content drafting and code support.
+**Capital:** $1K starting + recurring runway (day job / savings) for 12-18 months. **The plan does not work on $1K alone.**
+
+**Team:** You (developer) + me (planning, code support, content drafting tool). **A domain expert (HVAC tech / pump rebuilder) is the critical missing role** — required as content reviewer, contractor, or co-founder. Without expertise, content quality caps below the citation threshold.
 
 ---
 
@@ -77,6 +81,8 @@ Aftermarket industrial pump seals (Bell & Gossett, Goulds, Aurora, Taco) + HVAC 
 - **Helpful.** We explain compatibility, not just list SKUs.
 - **No marketing language.** "Premium." "Best-in-class." Banned.
 - **Specific over vague.** "Fits B&G Series 80 frames 1.625"-1.875"" beats "Universal fit."
+- **Citation-grade.** Every factual claim should be sourceable. AI assistants cite content that reads like a reference manual, not a sales page.
+- **Multi-audience without dumbing down.** Same page speaks to technicians (specs), homeowners (diagnostics), and students (engineering theory) — without watering any of them down.
 
 ### Voice examples
 | ❌ | ✅ |
@@ -407,45 +413,110 @@ Scale to ~$300/mo at 1M req/day (t3.xlarge + Redis Cloud + read replica).
 
 ## 9. SEO & content
 
+### The strategy in one sentence
+
+**Build factual content so genuinely useful that humans share it AND AI assistants cite it.** Every other SEO lever (keyword stuffing, programmatic AI commerce pages, link farms) is being actively demoted. Real content with citation-grade rigor is the only strategy with a 5-year half-life.
+
+### The two-track content model
+
+Stop trying to AI-draft 50,000 thin product pages — that pattern is exactly what Google's Helpful Content Update demotes. Instead, **two distinct content tracks**:
+
+| Track | Pages | Content shape | Effort per page | Audience signal |
+|---|---|---|---|---|
+| **Reference (stub) pages** | 50,000 | Factual minimums only: cross-ref table, dimensions, source-cited specs, image. NO prose, NO marketing. | 30 seconds (auto-generated from structured data) | Tier-1 / -2 from `product_scores` upgrade over time |
+| **Deep pages** | 500-2,000 | Multi-audience deep content (see below). Human-reviewed by domain expert. | 2-4 hours per page | The "AI-citation moat" — these are the pages that get cited |
+
+Google distinguishes **thin-by-design** (a factual reference page that's deliberately minimal) from **thin-by-laziness** (programmatic AI fluff). The stub pages clearly signal "reference manual" via structured data and explicit lack of marketing copy. They don't get demoted; they just earn modest rankings. The deep pages do the heavy ranking work.
+
 ### The four page types
 | Page | URL | Ranks for | Volume | Content depth |
 |---|---|---|---|---|
-| SKU | `/p/[brand]/[part]` | `[brand] [part]` | 30K-50K | 200-400 words |
-| Model | `/m/[brand]/[model]` | `[brand] [model] parts` | 500-2K | 800-1500 words |
-| Brand | `/b/[brand]` | `[brand] catalog` | 200-500 | 1500-3000 words |
-| Article | `/blog/[slug]` | how-to / vs / troubleshoot | 100-500 | 1500-3000 words |
+| **SKU stub** | `/p/[brand]/[part]` | `[brand] [part]` | 30-50K | Reference (~50-150 words of facts) |
+| **SKU deep** | `/p/[brand]/[part]` (upgraded) | `[brand] [part]` + related | 500-2K | 1,200-2,000 words multi-audience |
+| **Model** | `/m/[brand]/[model]` | `[brand] [model] parts` | 500-2K | 1,500-3,000 words |
+| **Brand** | `/b/[brand]` | `[brand] catalog` + brand history | 200-500 | 2,000-4,000 words |
+| **Article** | `/blog/[slug]` | how-to / vs / troubleshoot | 100-500 | 2,000-4,000 words |
+
+### What a deep SKU page contains (the AI-citation template)
+
+Every deep page has these sections, each speaking to a different audience without watering down:
+
+1. **Fact block (technicians).** Exact dimensions, material codes, pressure/temp/RPM ratings, cross-reference table, compatible pump models with frame designations. Source-cited from manufacturer documentation.
+2. **Diagnostic section (homeowners + on-site contractors).** "How do I know my seal is failing?" with specific symptoms. "Can I replace this myself?" with honest skill threshold. Real DIY failure modes. When to call a pro.
+3. **Engineering "why" (students + curious techs).** How the part actually works. Engineering tradeoffs. Failure mode analysis. Comparison to alternate designs.
+4. **Decision aid (everyone).** "Should I buy this or [alternate cross-ref]?" — with a real recommendation, not a sales pitch. Sometimes the right answer is "don't buy yet, check this first."
+5. **Sources and provenance.** Linked manufacturer datasheets. Citations to engineering standards (API 682, ANSI/HI 7.1). "Reviewed [date] by [name], [credentials]."
+
+### Optimizing for AI-assistant citation specifically
+
+ChatGPT browse, Perplexity, Gemini, Claude Search cite content that has:
+
+1. **Definitive language.** "The B&G 186094LF replaces the discontinued 178600 (2007)." Not: "Some users report it may replace older models."
+2. **Structured fact tables.** Machine-readable comparison tables with proper HTML semantics. AI assistants extract these directly.
+3. **Original data only we have.** Cross-reference matrices, brand-acquisition history (Goulds → ITT → ITT/Goulds → Goulds Water Technology), model evolution paths. The U.S. Seal Pump Cross-Reference PDF we parsed contains data most websites don't expose cleanly.
+4. **Schema beyond Product.** `HowTo` for replacement procedures. `QAPage` for FAQs. `Article` for educational content. `DefinedTermSet` for technical glossaries. `Dataset` for cross-reference tables.
+5. **Citations and provenance.** Every factual claim sourced. AI weights cited content higher because it must attribute.
+6. **Author / publisher entity signals.** "Nurtique Engineering" entity with consistent `Organization` schema across pages. Author profile pages for the human reviewer with credentials.
+7. **Updated dates that mean something.** Not autoupdated nonsense — actually updated when manufacturer data changes, with a changelog if possible.
 
 ### Free keyword acquisition
 - **Google autocomplete** (`suggestqueries.google.com`) — pace 1 req/3s, rotate UAs
 - **SERP scraping** via stealth Puppeteer — top-10 results per SKU
 - **Related Searches** at SERP bottom — gold for article topics
+- **People Also Ask** boxes — gold for FAQ section content
 - **Google Trends** for brand/category-level trends
 
 Volume estimates as bands (low <50, medium 50-500, high >500). Good enough for ordering; precise numbers when we eventually pay for Ahrefs.
 
-### Content workflow
-1. Nightly: scoring job marks new tier-1 products
-2. For each: Claude generates 600-1200 word draft via structured prompt
-3. Draft enters `articles` with status='review', author='claude'
-4. You see daily email digest with new drafts
-5. Admin UI: side-by-side preview + edit + approve/reject
-6. Approved → status='published', sitemap regenerated
+### Content production workflow
+
+**Reference stub pages (50K):**
+- Auto-generated from `products` + `part_number_aliases` + `models` + `brands` + scraped specs
+- No AI prose. Templated, factual, with explicit "Reference page" semantic markup
+- Published in bulk via sitemap submission
+- Upgraded to "deep" tier when `product_scores` indicates organic traffic or revenue
+
+**Deep pages (500-2K, the moat):**
+1. Score job identifies tier-1 candidates from `product_scores`
+2. Claude generates a STRUCTURED draft with the 5-section template (not prose; section by section, fact-first)
+3. **Domain expert reviewer** edits every page — fact-checks, adds field-experience commentary, kills hallucinations
+4. Optional: technical illustrator generates a custom cross-section diagram (or we license from manufacturer where permitted)
+5. Status flows: `draft → claude_drafted → expert_review → revisions → approved → published`
+
+**Realistic production rate:**
+- 5-10 deep pages/week with expert review (sustainable)
+- 20-40 deep pages/week with Claude + expert at high cadence (achievable for 1-2 month sprints, not sustained)
+- 100+/week is the rate at which quality drops and Google notices
+
+**Hitting 1,000 deep pages takes ~25-50 weeks at sustainable pace.** Plan accordingly.
+
+### The expertise role (critical, not optional)
+
+The deep-content track requires someone with hands-on industry experience. Options:
+
+1. **Hire part-time content reviewer** — retired HVAC tech or pump rebuilder, ~$500-1,500/month for 5-10 hours/week
+2. **Co-founder for equity** — former service tech or contractor, 10-30% equity
+3. **Self-teach by shadowing** — spend 1 week shadowing a service tech, document everything, repeat quarterly
+4. **Interview-based content** — pay techs $50-100 per recorded interview, transcribe + edit into authoritative content (cheapest path)
+
+**You cannot ship the AI-citation strategy without one of these.** Claude-drafted content reviewed only by a developer will contain plausible-sounding errors that destroy the trust we need.
 
 ### Internal linking density
 - Every SKU page: 15-25 inbound links (model, brand, category, cross-refs, related, articles)
-- Authority cascade: brand pages earn backlinks → push models → push SKUs
+- Authority cascade: brand pages earn backlinks → push models → push SKUs → push reference stubs
 
 ### Technical SEO checklist (every page)
 - `<title>` 50-60 chars, includes primary keyword
 - `<meta description>` 140-160 chars
 - `<link rel="canonical">`
-- JSON-LD: Product / BreadcrumbList / FAQPage / Article / Organization (where applicable)
+- JSON-LD per page type: Product / BreadcrumbList / FAQPage / HowTo / Article / Organization / Dataset / DefinedTermSet
 - OpenGraph + Twitter Card meta
-- Sitemap.xml split: sitemap-products.xml, sitemap-articles.xml, sitemap-brands.xml, sitemap-models.xml
+- Sitemap.xml split: sitemap-products-stub.xml, sitemap-products-deep.xml, sitemap-articles.xml, sitemap-brands.xml, sitemap-models.xml
 - robots.txt: allow all except /admin, /api, /_next
 - Core Web Vitals targets: LCP <2.0s, INP <200ms, CLS <0.1
 - Mobile-first responsive layout
 - HTTPS + HSTS
+- `llms.txt` at root — emerging spec for telling AI assistants what content to use (we'll publish it)
 
 ---
 
@@ -667,10 +738,11 @@ Manufacturer-direct (US Seal, Vulcan, AST) applications are the Phase-2 outreach
 ### What we measure monthly
 
 **Acquisition:**
-- Indexed pages in Google Search Console
+- Indexed pages in Google Search Console (split: stub pages vs deep pages)
 - Pages in top 10 / top 3 for primary keyword (`[brand] [part-number]`)
 - Organic clicks (GSC)
 - Referring domains (Ahrefs free trial monthly check)
+- **AI-citation count** — how many times our pages appear as cited sources in ChatGPT browse / Perplexity / Gemini responses for our target queries (manual check monthly, ~50 sample queries)
 
 **Engagement:**
 - Pageviews + unique visitors (Plausible)
@@ -697,16 +769,21 @@ Manufacturer-direct (US Seal, Vulcan, AST) applications are the Phase-2 outreach
 - Customer acquisition cost (target <$30 at launch)
 - LTV/CAC ratio (target >3× by month 6)
 
-### Year-1 targets
+### Year-1 targets (calibrated to two-track content model)
 
-| Month | Indexed pages | Top-3 rankings | Orders/mo | Revenue/mo |
-|---|---|---|---|---|
-| 1 | 5K | 50 | 5-10 | $300 |
-| 3 | 15K | 300 | 50 | $2,500 |
-| 6 | 30K | 1,500 | 200 | $12K |
-| 12 | 45K | 10,000 | 600 | $36K |
+| Month | Stub pages indexed | Deep pages published | Top-3 rankings | AI citations | Orders/mo | Revenue/mo |
+|---|---|---|---|---|---|---|
+| 1 | 5K | 50 | 20 | 0 | 2-5 | $150 |
+| 3 | 20K | 200 | 200 | 0-5 | 30 | $1,500 |
+| 6 | 35K | 500 | 1,000 | 5-15 | 120 | $7K |
+| 12 | 50K | 1,500 | 5,000-10,000 | 50-200 | 350 | $20K |
 
-These targets are deliberately aggressive. Hitting 50% of them is still a real business.
+Adjustments from prior plan:
+- **Lower revenue ramp.** Deep content production is the bottleneck. Expert review caps weekly velocity at 5-10 deep pages.
+- **AI-citation metric added.** This is the durable moat. Even at low absolute numbers in year 1, the trajectory matters more than the count.
+- **Hitting 50% of these targets is still a real business.** Hitting 30% is still worth doing.
+
+**Probability framing:** ~25-35% chance to reach the year-1 revenue target. ~15-25% chance to become a cited AI-assistant source in our niche. ~50-60% chance the site ships and earns at least sustaining revenue. The strategy has a higher long-term ceiling than the pure-AI-content version it replaces.
 
 ---
 
@@ -724,17 +801,17 @@ These targets are deliberately aggressive. Hitting 50% of them is still a real b
 - **Week 7:** Image pipeline (S3 + sharp + 6 variants), admin upload. Stripe Checkout integration.
 - **Week 8:** Order flow + shipment creation + EasyPost/Shippo webhook integration. Email transactional templates via Resend.
 
-### Phase 3: Content velocity (Weeks 9-12)
-- **Week 9:** Article-drafting pipeline (Claude prompts + admin review UI). Brand articles for top 50 brands.
-- **Week 10:** Model articles for top 200 models. Internal linking enforcement.
-- **Week 11:** SKU page descriptions for tier-1 (top 5K). Audit Core Web Vitals.
-- **Week 12:** Sitemap generation + GSC submission. First indexing checkpoint.
+### Phase 3: Content scaffolding (Weeks 9-12)
+- **Week 9:** Auto-generate all 50K stub pages from `products` + `part_number_aliases`. Strict factual minimums. Publish behind a `noindex` header initially.
+- **Week 10:** Deep-content template + Claude prompt engineering (the 5-section structure). First 20 deep pages drafted for top brands (B&G, Goulds, Belimo). **Expert reviewer onboarded.**
+- **Week 11:** Expert review pipeline running. First 20 deep pages published. Brand articles for top 10 brands. Audit Core Web Vitals.
+- **Week 12:** Sitemap generation + GSC submission. Stub pages flip from `noindex` to `index`. First indexing checkpoint at Google. First batch of 20 deep pages indexed and tested against AI-assistant citation (manual check: ChatGPT browse, Perplexity).
 
 ### Phase 4: Launch + Marketing (Weeks 13-16)
-- **Week 13:** Soft launch: site live, search functional, 5K product pages published.
-- **Week 14:** Reddit participation begins. LinkedIn company page launched. First YouTube video.
-- **Week 15:** Backlink outreach starts. Email welcome series live.
-- **Week 16:** First paid order shipped (target). Retrospective + Phase-5 planning.
+- **Week 13:** Soft launch: site live, search functional, 50K stubs + ~50 deep pages published. Cloudflare on. Sentry + Plausible reporting.
+- **Week 14:** Reddit participation begins. LinkedIn company page launched. First YouTube video. Continue deep-page production at 5-10/week.
+- **Week 15:** Backlink outreach starts. Email welcome series live. Production rate target: 100 deep pages cumulative.
+- **Week 16:** First paid order shipped (target — modest given low deep-page count). Retrospective + adjust pace. Identify first AI-citation wins (or absence) and iterate.
 
 ### Phase 5: Scale (Months 5-12)
 - Manufacturer-direct outreach (the AI agent we deferred from EXECUTION_PLAN)
@@ -749,16 +826,24 @@ These targets are deliberately aggressive. Hitting 50% of them is still a real b
 
 These need your input before any code touches the new repo:
 
-1. **AWS account access** — you own it; I document but don't provision.
-2. **Stripe account** — sign up in test mode now so we have keys for week-7 checkout integration.
-3. **Cloudflare account** — already on it? Or need to set up?
-4. **Resend account** — sign up + verify nurtique.com sender domain (SPF/DKIM/DMARC) by week-7.
-5. **EasyPost vs Shippo** — for tracking aggregation. Both ~$0.01/lookup. Pick one and create account.
-6. **Designer for logo** — $200-500 contract on Fiverr/Dribbble before week-12 launch. Or skip with text-only logo + buy proper one at month 3 with revenue.
-7. **GSC + GA4 + Bing Webmaster** — accounts created and verified ownership during week-1.
-8. **GitHub Actions secrets** — DB credentials, AWS keys, Stripe keys, Resend API key. Vaulted in GitHub repo settings.
-9. **Admin bearer token strategy** — single env-injected `ADMIN_BEARER_TOKEN` for now, swap to Clerk/Auth0 when 2+ admins exist.
-10. **First 10 sample SKUs you want me to manually QA** before we trust the curation pipeline at scale.
+1. **Domain expert / content reviewer** — **the most important decision in this document.** Without one, the AI-citation moat doesn't materialize. Options:
+   - Hire part-time retired tech ($500-1,500/mo for 5-10 hrs/wk)
+   - Co-founder for 10-30% equity
+   - Pay-per-interview model with active techs ($50-100 per recorded interview)
+   - Self-teach by shadowing service techs
+   - Pick one before week 10.
+2. **Runway capital plan** — $1K alone won't fund 12-18 months. What's the day-job / savings / partner-capital plan that covers $110-200/mo infra + $500-1,500/mo content reviewer + your time?
+3. **AWS account access** — you own it; I document but don't provision.
+4. **Stripe account** — sign up in test mode now so we have keys for week-7 checkout integration.
+5. **Cloudflare account** — already on it? Or need to set up?
+6. **Resend account** — sign up + verify nurtique.com sender domain (SPF/DKIM/DMARC) by week-7.
+7. **EasyPost vs Shippo** — for tracking aggregation. Both ~$0.01/lookup. Pick one and create account.
+8. **Designer for logo** — $200-500 contract on Fiverr/Dribbble before week-12 launch. Or skip with text-only logo + buy proper one at month 3 with revenue.
+9. **GSC + GA4 + Bing Webmaster** — accounts created and verified ownership during week-1.
+10. **GitHub Actions secrets** — DB credentials, AWS keys, Stripe keys, Resend API key. Vaulted in GitHub repo settings.
+11. **Admin bearer token strategy** — single env-injected `ADMIN_BEARER_TOKEN` for now, swap to Clerk/Auth0 when 2+ admins exist.
+12. **First 10 sample SKUs you want me to manually QA** before we trust the curation pipeline at scale.
+13. **Niche scope decision** — do we launch with BOTH pump seals AND HVAC controls, or narrow to one for the first 6 months to concentrate authority and expertise? Narrower probably ships higher quality faster.
 
 ---
 
