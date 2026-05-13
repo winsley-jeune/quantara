@@ -2,6 +2,10 @@
 // later we can add a master 'All' sheet with normalized columns.
 import ExcelJS from 'exceljs';
 import type { USSealCrossRef } from '../sources/usseal';
+import type { InlineSalesEntry } from '../sources/inlinesales';
+import type { BoilerSuppliesEntry } from '../sources/boilersupplies';
+import type { VulcanEntry } from '../sources/vulcanseals';
+import type { JacksonSystemsEntry } from '../sources/jacksonsystems';
 
 export interface CatalogRow {
   source: string;
@@ -27,6 +31,70 @@ export function ussealToCatalog(rows: USSealCrossRef[]): CatalogRow[] {
     aftermarket_part_number: r.us_seal_part_number,
     pump_nameplate_data: r.pump_nameplate_data ?? '',
     search_query: `${r.oem_brand.split(' ')[0]} ${r.oem_part_number} seal`,
+    monthly_search_volume: '',
+    list_price_estimate: '',
+    status: 'sourced',
+  }));
+}
+
+export function inlinesalesToCatalog(rows: InlineSalesEntry[]): CatalogRow[] {
+  return rows.map((r) => ({
+    source: r.source,
+    category: 'pump-or-circulator',
+    oem_brand: r.brand,
+    oem_part_number: r.part_number,
+    aftermarket_brand: '',
+    aftermarket_part_number: '',
+    pump_nameplate_data: r.slug_remainder,
+    search_query: `${r.brand} ${r.part_number}`,
+    monthly_search_volume: '',
+    list_price_estimate: '',
+    status: 'sourced',
+  }));
+}
+
+export function boilersuppliesToCatalog(rows: BoilerSuppliesEntry[]): CatalogRow[] {
+  return rows.map((r) => ({
+    source: r.source,
+    category: 'pump-part',
+    oem_brand: r.brand,
+    oem_part_number: r.part_number,
+    aftermarket_brand: '',
+    aftermarket_part_number: '',
+    pump_nameplate_data: r.slug_remainder,
+    search_query: `${r.brand} ${r.part_number}`,
+    monthly_search_volume: '',
+    list_price_estimate: '',
+    status: 'sourced',
+  }));
+}
+
+export function jacksonsystemsToCatalog(rows: JacksonSystemsEntry[]): CatalogRow[] {
+  return rows.map((r) => ({
+    source: r.source,
+    category: 'hvac-controls',
+    oem_brand: r.brand,
+    oem_part_number: r.part_number,
+    aftermarket_brand: '',
+    aftermarket_part_number: '',
+    pump_nameplate_data: r.slug_remainder,
+    search_query: `${r.brand} ${r.part_number}`,
+    monthly_search_volume: '',
+    list_price_estimate: '',
+    status: 'sourced',
+  }));
+}
+
+export function vulcanToCatalog(rows: VulcanEntry[]): CatalogRow[] {
+  return rows.map((r) => ({
+    source: r.source,
+    category: 'pump-seal',
+    oem_brand: r.oem_brand,
+    oem_part_number: '', // Vulcan URLs are seal-type → OEM-brand cross-refs; no OEM part number at slug level
+    aftermarket_brand: 'Vulcan Seals',
+    aftermarket_part_number: r.vulcan_part_type,
+    pump_nameplate_data: r.description,
+    search_query: `${r.oem_brand} pump seal Vulcan ${r.vulcan_part_type}`,
     monthly_search_volume: '',
     list_price_estimate: '',
     status: 'sourced',

@@ -15,6 +15,7 @@
   "description": "Walmart → Amazon arbitrage scanner. Scrapes Walmart category feeds and produces a sourcing workbook for SellerAmp analysis.",
   "dependencies": {
     "better-sqlite3": "^12.9.0",
+    "cheerio": "^1.2.0",
     "dotenv": "^16.4.5",
     "exceljs": "^4.4.0",
     "express": "^4.21.2",
