@@ -118,6 +118,52 @@ export function vulcanToCatalog(rows: VulcanEntry[]): CatalogRow[] {
   }));
 }
 
+// Combine rows that share the same (oem_brand, oem_part_number) — same SKU
+// found in multiple sources. We keep the first row's metadata and append
+// alternative aftermarket equivalents + sources into combined fields.
+export function dedupeCatalog(rows: CatalogRow[]): CatalogRow[] {
+  const map = new Map<string, CatalogRow>();
+  const altParts = new Map<string, Set<string>>();
+  const altSources = new Map<string, Set<string>>();
+
+  function keyOf(r: CatalogRow): string {
+    const brand = r.oem_brand.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const part = r.oem_part_number.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!brand || !part) return '';
+    return `${brand}::${part}`;
+  }
+
+  for (const r of rows) {
+    const k = keyOf(r);
+    if (!k) {
+      // No part number → keep as-is, not dedupable
+      map.set(`__nokey_${map.size}`, r);
+      continue;
+    }
+    if (!map.has(k)) map.set(k, r);
+    if (!altParts.has(k)) altParts.set(k, new Set());
+    if (!altSources.has(k)) altSources.set(k, new Set());
+    if (r.aftermarket_part_number) altParts.get(k)!.add(r.aftermarket_part_number);
+    altSources.get(k)!.add(r.source);
+  }
+
+  const out: CatalogRow[] = [];
+  for (const [k, row] of map.entries()) {
+    if (k.startsWith('__nokey_')) {
+      out.push(row);
+      continue;
+    }
+    const allAfter = [...(altParts.get(k) ?? new Set<string>())].filter(Boolean).join(' | ');
+    const allSrc = [...(altSources.get(k) ?? new Set<string>())].join(' | ');
+    out.push({
+      ...row,
+      aftermarket_part_number: allAfter || row.aftermarket_part_number,
+      source: allSrc,
+    });
+  }
+  return out;
+}
+
 export async function writeCatalogExcel(path: string, rows: CatalogRow[]): Promise<void> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'quantara-agent';

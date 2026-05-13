@@ -12,6 +12,7 @@ import {
   vulcanToCatalog,
   jacksonsystemsToCatalog,
   pexToCatalog,
+  dedupeCatalog,
   writeCatalogExcel,
   type CatalogRow,
 } from '../src/agent/exports/excelExport';
@@ -69,9 +70,12 @@ async function main(): Promise<void> {
     console.warn('  pexuniverse failed:', (err as Error).message);
   }
 
-  console.log(`\ntotal rows: ${all.length}`);
+  console.log(`\nraw rows: ${all.length}`);
+  const deduped = dedupeCatalog(all);
+  console.log(`unique SKUs after dedupe: ${deduped.length}`);
+
   const path = 'data/catalog-stage1.xlsx';
-  await writeCatalogExcel(path, all);
+  await writeCatalogExcel(path, deduped);
   console.log(`wrote → ${path}`);
 }
 
